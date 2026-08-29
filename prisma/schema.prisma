@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Admin Users
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("admin")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@map("users")
+}
+
+// Student Registration
+model Student {
+  id                      String   @id @default(cuid())
+  registrationId          String   @unique // STU-YYYY-000123
+  
+  // Personal Information
+  firstName               String
+  lastName                String
+  fatherName              String
+  fin                     String   @unique
+
+  // Contact Information
+  personalPhone           String
+  fatherName2             String?
+  fatherPhone             String?
+  fatherWorkplace         String?
+  motherName              String?
+  motherPhone             String?
+  motherWorkplace         String?
+
+  // Education Information
+  educationLevel          String   // Diploma type
+  educationInstitutionId  String
+  educationInstitution    EducationInstitution @relation(fields: [educationInstitutionId], references: [id])
+  graduationYear          Int
+
+  // Address Information
+  registrationAddressId   String
+  registrationAddress     Address  @relation("registrationAddress", fields: [registrationAddressId], references: [id])
+  actualAddressId         String
+  actualAddress           Address  @relation("actualAddress", fields: [actualAddressId], references: [id])
+
+  // Metadata
+  consentGiven            Boolean  @default(false)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  auditLogs AuditLog[]
+
+  @@index([fin])
+  @@index([lastName])
+  @@index([personalPhone])
+  @@index([educationInstitutionId])
+  @@index([graduationYear])
+  @@map("students")
+}
+
+// Education Institution
+model EducationInstitution {
+  id          String   @id @default(cuid())
+  name        String
+  type        String   // peşə_məktəbi, peşə_liseyi, peşə_təhsil_mərkəzi, tam_orta_məktəb, etc.
+  city        String
+  district    String?
+  address     String?
+  source      String?  // Source of data (edu.gov.az, vet.edu.gov.az, etc.)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  students    Student[]
+
+  @@index([type])
+  @@index([city])
+  @@index([district])
+  @@map("education_institutions")
+}
+
+// Address
+model Address {
+  id           String   @id @default(cuid())
+  region       String   // Bakı, Gəncə, etc.
+  district     String?  // Nərimanov, Yasamal, etc.
+  street       String   // Küçə/prospekt/qəsəbə/kənd
+  building     String   // Ev/bina/mənzil
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  registrationStudents Student[] @relation("registrationAddress")
+  actualStudents       Student[] @relation("actualAddress")
+
+  @@map("addresses")
+}
+
+// Audit Log
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  studentId   String?
+  student     Student? @relation(fields: [studentId], references: [id])
+  action      String   // CREATE, UPDATE, DELETE
+  tableName   String   // students, education_institutions, etc.
+  oldValues   Json?
+  newValues   Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([studentId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// Predefined Regions (Cities/Districts)
+model Region {
+  id        String   @id @default(cuid())
+  name      String   @unique // Bakı şəhəri, Gəncə şəhəri, etc.
+  type      String   // city, region
+  createdAt DateTime @default(now())
+
+  @@map("regions")
+}
